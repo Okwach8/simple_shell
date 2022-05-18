@@ -1,146 +1,157 @@
 #include "shell.h"
 
 /**
- * addPath - Get and check if the command is available
- * @tokens: n
- * @path: n
- * Return: Pointer to the filename where is the path to use
+ * check_for_builtins - checks if the command is a builtin
+ * @vars: variables
+ * Return: pointer to the function or NULL
  */
-char *addPath(char ***tokens, Node *path)
+void (*check_for_builtins(vars_t *vars))(vars_t *vars)
 {
-	struct stat st;
-	Node *pathDirs;
-	char *firstOne, *copyPath = NULL;
-	int lenOne, lenTwo;
+	unsigned int i;
+	builtins_t check[] = {
+		{"exit", new_exit},
+		{"env", _env},
+		{"setenv", new_setenv},
+		{"unsetenv", new_unsetenv},
+		{NULL, NULL}
+	};
 
-	if (*tokens == NULL)
-		return (NULL);
-
-	pathDirs = path;
-	if (pathDirs == NULL)
-		return (NULL);
-
-	firstOne = *(tokens)[0];
-	lenOne = _strlen(firstOne);
-
-	while (pathDirs != NULL)
+	for (i = 0; check[i].f != NULL; i++)
 	{
-		lenTwo = _strlen(pathDirs->str);
-		copyPath = malloc((lenTwo + lenOne + 2) * sizeof(char));
-		if (copyPath == NULL)
-			return (NULL);
-		*copyPath = '\0'; /* Initialized value with null char */
-		_strcat(copyPath, pathDirs->str);
-		_strcat(copyPath, "/");
-		_strcat(copyPath, firstOne);
-		if (stat(copyPath, &st) == 0)
+		if (_strcmpr(vars->av[0], check[i].name) == 0)
 			break;
-
-		free(copyPath);
-		copyPath = NULL;
-		pathDirs = pathDirs->next;
 	}
-	return (copyPath);
-
+	if (check[i].f != NULL)
+		check[i].f(vars);
+	return (check[i].f);
 }
-/**
- * processTokens - Get all of the strings separated by a delimiter in
- * an array of strings
- * @tokens: n
- * @buffer: n
- * @countToken: n
- *
- * Return: nothing
- */
-void processTokens(char ***tokens, char **buffer, int countToken)
-{
-	char *token = NULL;
-	int i;
-	char *delim = " \n\t";
 
-	*tokens = malloc(sizeof(char *) * countToken);
-	token = strtok(*buffer, delim);
-	for (i = 0; token != NULL; i++)
+/**
+ * new_exit - exit program
+ * @vars: variables
+ * Return: void
+ */
+void new_exit(vars_t *vars)
+{
+	int status;
+
+	if (_strcmpr(vars->av[0], "exit") == 0 && vars->av[1] != NULL)
 	{
-		(*tokens)[i] = token;
-		token = strtok(NULL, delim);
-	}
-	(*tokens)[i] = token; /*Save the NULL token*/
-}
-
-/**
- * lenTokens - Get the number of words separated by a delimiter
- * @lenReaded: n
- * @buffer: n
- * Return: (int) of words in the buffer
- */
-int lenTokens(ssize_t lenReaded, char **buffer)
-{
-	char *tempToken = NULL, *copyBuffer = NULL;
-	int i;
-	char *delim = " \n\t";
-
-	copyBuffer = malloc(sizeof(char) * lenReaded);
-	_strcpy(copyBuffer, *buffer);
-	tempToken = strtok(copyBuffer, delim);
-	for (i = 0; tempToken != NULL; i++)
-		tempToken = strtok(NULL, delim);
-	i++; /* One more to save NULL */
-	free(copyBuffer);
-	return (i);
-}
-
-/**
- * replaceNewLine - Replace the new line in the buffer
- * by a null character
- * @buffer: n
- * Return: nothing
- */
-void replaceNewLine(char **buffer)
-{
-	int i;
-
-	for (i = 0; (*buffer)[i] != '\0'; i++)
-		continue;
-	(*buffer)[i - 1] = '\0';  /* Replace '\n' by '\0' */
-
-}
-
-
-/**
- * readLine - Get and process the data in the stdin
- * @buffer: n
- * @tokens: n
- * Return: (ssize_t) The number of chars readed in stdin
- */
-ssize_t readLine(char **buffer, char ***tokens)
-{
-	size_t bufferSize = 0;
-	ssize_t gl;
-	int countToken, i;
-
-	*tokens = NULL;
-	gl = _getline(buffer, &bufferSize, stdin);
-
-	if (gl > 0)
-	{
-		i = 0;
-		while ((*buffer)[i] == ' ' || (*buffer)[i] == '\t')
+		status = _atoi(vars->av[1]);
+		if (status == -1)
 		{
-			if ((*buffer)[i + 1] == '\n')
-				return (gl);
-			i++;
+			vars->status = 2;
+			print_error(vars, ": Illegal number: ");
+			_puts2(vars->av[1]);
+			_puts2("\n");
+			free(vars->commands);
+			vars->commands = NULL;
+			return;
 		}
+		vars->status = status;
 	}
+	free(vars->buffer);
+	free(vars->av);
+	free(vars->commands);
+	free_env(vars->env);
+	exit(vars->status);
+}
 
-	if (gl > 0 && **buffer != '\n')
+/**
+ * _env - prints the current environment
+ * @vars: struct of variables
+ * Return: void.
+ */
+void _env(vars_t *vars)
+{
+	unsigned int i;
+
+	for (i = 0; vars->env[i]; i++)
 	{
-		replaceNewLine(buffer);
-		countToken = lenTokens(gl, buffer);
-		processTokens(tokens, buffer, countToken);
-		isBasicExit(tokens, countToken, &gl);
-		isEnv(tokens, countToken);
+		_puts(vars->env[i]);
+		_puts("\n");
 	}
+	vars->status = 0;
+}
 
-	return (gl);
+/**
+ * new_setenv - create a new environment variable, or edit an existing variable
+ * @vars: pointer to struct of variables
+ *
+ * Return: void
+ */
+void new_setenv(vars_t *vars)
+{
+	char **key;
+	char *var;
+
+	if (vars->av[1] == NULL || vars->av[2] == NULL)
+	{
+		print_error(vars, ": Incorrect number of arguments\n");
+		vars->status = 2;
+		return;
+	}
+	key = find_key(vars->env, vars->av[1]);
+	if (key == NULL)
+		add_key(vars);
+	else
+	{
+		var = add_value(vars->av[1], vars->av[2]);
+		if (var == NULL)
+		{
+			print_error(vars, NULL);
+			free(vars->buffer);
+			free(vars->commands);
+			free(vars->av);
+			free_env(vars->env);
+			exit(127);
+		}
+		free(*key);
+		*key = var;
+	}
+	vars->status = 0;
+}
+
+/**
+ * new_unsetenv - remove an environment variable
+ * @vars: pointer to a struct of variables
+ *
+ * Return: void
+ */
+void new_unsetenv(vars_t *vars)
+{
+	char **key, **newenv;
+
+	unsigned int i, j;
+
+	if (vars->av[1] == NULL)
+	{
+		print_error(vars, ": Incorrect number of arguments\n");
+		vars->status = 2;
+		return;
+	}
+	key = find_key(vars->env, vars->av[1]);
+	if (key == NULL)
+	{
+		print_error(vars, ": No variable to unset");
+		return;
+	}
+	for (i = 0; vars->env[i] != NULL; i++)
+		;
+	newenv = malloc(sizeof(char *) * i);
+	if (newenv == NULL)
+	{
+		print_error(vars, NULL);
+		vars->status = 127;
+		new_exit(vars);
+	}
+	for (i = 0; vars->env[i] != *key; i++)
+		newenv[i] = vars->env[i];
+	for (j = i + 1; vars->env[j] != NULL; j++, i++)
+		newenv[i] = vars->env[j];
+	newenv[i] = NULL;
+	free(*key);
+	free(vars->env);
+	vars->env = newenv;
+	vars->status = 0;
 }
