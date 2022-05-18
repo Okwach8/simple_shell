@@ -1,157 +1,113 @@
 #include "shell.h"
 
 /**
- * check_for_builtins - checks if the command is a builtin
- * @vars: variables
- * Return: pointer to the function or NULL
- */
-void (*check_for_builtins(vars_t *vars))(vars_t *vars)
-{
-	unsigned int i;
-	builtins_t check[] = {
-		{"exit", new_exit},
-		{"env", _env},
-		{"setenv", new_setenv},
-		{"unsetenv", new_unsetenv},
-		{NULL, NULL}
-	};
-
-	for (i = 0; check[i].f != NULL; i++)
-	{
-		if (_strcmpr(vars->av[0], check[i].name) == 0)
-			break;
-	}
-	if (check[i].f != NULL)
-		check[i].f(vars);
-	return (check[i].f);
-}
-
-/**
- * new_exit - exit program
- * @vars: variables
- * Return: void
- */
-void new_exit(vars_t *vars)
-{
-	int status;
-
-	if (_strcmpr(vars->av[0], "exit") == 0 && vars->av[1] != NULL)
-	{
-		status = _atoi(vars->av[1]);
-		if (status == -1)
-		{
-			vars->status = 2;
-			print_error(vars, ": Illegal number: ");
-			_puts2(vars->av[1]);
-			_puts2("\n");
-			free(vars->commands);
-			vars->commands = NULL;
-			return;
-		}
-		vars->status = status;
-	}
-	free(vars->buffer);
-	free(vars->av);
-	free(vars->commands);
-	free_env(vars->env);
-	exit(vars->status);
-}
-
-/**
- * _env - prints the current environment
- * @vars: struct of variables
- * Return: void.
- */
-void _env(vars_t *vars)
-{
-	unsigned int i;
-
-	for (i = 0; vars->env[i]; i++)
-	{
-		_puts(vars->env[i]);
-		_puts("\n");
-	}
-	vars->status = 0;
-}
-
-/**
- * new_setenv - create a new environment variable, or edit an existing variable
- * @vars: pointer to struct of variables
+ **_strcat(char *dest, char *src)- a function that concatenates two strings.
+ *@dest: Char input
+ *@src: Char input
  *
- * Return: void
+ * Return: Always 0.
  */
-void new_setenv(vars_t *vars)
+char *_strcat(char *dest, char *src)
 {
-	char **key;
-	char *var;
+	int j = 0;
 
-	if (vars->av[1] == NULL || vars->av[2] == NULL)
+	int length = _strlen(dest);
+
+	while (src[j] != '\0')
 	{
-		print_error(vars, ": Incorrect number of arguments\n");
-		vars->status = 2;
-		return;
+		dest[length] = src[j];
+		length++;
+		j++;
 	}
-	key = find_key(vars->env, vars->av[1]);
-	if (key == NULL)
-		add_key(vars);
-	else
-	{
-		var = add_value(vars->av[1], vars->av[2]);
-		if (var == NULL)
-		{
-			print_error(vars, NULL);
-			free(vars->buffer);
-			free(vars->commands);
-			free(vars->av);
-			free_env(vars->env);
-			exit(127);
-		}
-		free(*key);
-		*key = var;
-	}
-	vars->status = 0;
+	dest[length] = '\0';
+	return (dest);
 }
 
 /**
- * new_unsetenv - remove an environment variable
- * @vars: pointer to a struct of variables
+ * _strcmp - compares two strings
+ * @s1: first string
+ * @s2: second string to compare to first string
  *
- * Return: void
+ * Return: <0 if s1 is less than s2, 0 for equal, >0 if s1 is greater than s2
  */
-void new_unsetenv(vars_t *vars)
+int _strcmp(char *s1, char *s2)
 {
-	char **key, **newenv;
+	while (*s1 == *s2)
+	{
+	if (*s1 == '\0')
+	{
+	return (0);
+	}
+	s1++;
+	s2++;
+	}
+	return (*s1 - *s2);
+}
 
-	unsigned int i, j;
+/**
+ * char *_strcpy- Copies a string
+ *@dest: The new, coppied string
+ *@src: The original string to copy
+ *
+ * Return: Always 0.
+ */
+char *_strcpy(char *dest, char *src)
+{
+	int length, i;
 
-	if (vars->av[1] == NULL)
+	length = _strlen(src);
+
+	for (i = 0; i < length; i++)
 	{
-		print_error(vars, ": Incorrect number of arguments\n");
-		vars->status = 2;
-		return;
+		dest[i] = src[i];
 	}
-	key = find_key(vars->env, vars->av[1]);
-	if (key == NULL)
+	dest[i] = '\0';
+
+	return (dest);
+}
+
+/**
+ * _strlen(char *s)- a function that returns the length of a string.
+ *@s: Char
+ *
+ * Return: Always 0.
+ */
+
+int _strlen(char *s)
+{
+	int i = 0;
+
+	while (s[i] != '\0')
 	{
-		print_error(vars, ": No variable to unset");
-		return;
-	}
-	for (i = 0; vars->env[i] != NULL; i++)
-		;
-	newenv = malloc(sizeof(char *) * i);
-	if (newenv == NULL)
-	{
-		print_error(vars, NULL);
-		vars->status = 127;
-		new_exit(vars);
-	}
-	for (i = 0; vars->env[i] != *key; i++)
-		newenv[i] = vars->env[i];
-	for (j = i + 1; vars->env[j] != NULL; j++, i++)
-		newenv[i] = vars->env[j];
-	newenv[i] = NULL;
-	free(*key);
-	free(vars->env);
-	vars->env = newenv;
-	vars->status = 0;
+		i++;
+		}
+	return (i);
+}
+
+/**
+ * *_strdup - copies the input string
+ * @string: input string
+ *
+ * Return: *ptr to the copied string or  NULL (if Error)
+ */
+char *_strdup(char *string)
+{
+	char *dup;
+	unsigned int i = 0, length = 0;
+
+	if (string == NULL)
+		return (NULL);
+
+	while (string[length])
+		length++;
+
+	dup = malloc(sizeof(char) * (length + 1));
+
+	if (dup == NULL)
+		return (NULL);
+
+	while ((dup[i] = string[i]) != '\0')
+		i++;
+
+	return (dup);
 }
