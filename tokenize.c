@@ -1,38 +1,48 @@
 #include "shell.h"
 
 /**
- * tokenize - tokenizes a buffer with a delimiter
- * @buffer: buffer to tokenize
- * @delimiter: delimiter to tokenize along
- *
- * Return: pointer to an array of pointers to the tokens
- */
-char **tokenize(char *buffer, char *delimiter)
+* tokenizer - creates tokens from given input
+* @line: to be tokenized
+*
+* Return: array of strings
+*/
+char **tokenizer(char *line)
 {
+	char *buf = NULL, *bufp = NULL, *token = NULL, *delim = " :\t\r\n";
 	char **tokens = NULL;
-	size_t i = 0, mcount = 10;
+	int tokensize = 1;
+	size_t index = 0, flag = 0;
 
-	if (buffer == NULL)
+	buf = _strdup(line);
+	if (!buf)
 		return (NULL);
-	tokens = malloc(sizeof(char *) * mcount);
-	if (tokens == NULL)
+	bufp = buf;
+
+	while (*bufp)
 	{
-		perror("Fatal Error");
-		return (NULL);
-	}
-	while ((tokens[i] = new_strtok(buffer, delimiter)) != NULL)
-	{
-		i++;
-		if (i == mcount)
+		if (_strchr(delim, *bufp) != NULL && flag == 0)
 		{
-			tokens = _realloc(tokens, &mcount);
-			if (tokens == NULL)
-			{
-				perror("Fatal Error");
-				return (NULL);
-			}
+			tokensize++;
+			flag = 1;
 		}
-		buffer = NULL;
+		else if (_strchr(delim, *bufp) == NULL && flag == 1)
+			flag = 0;
+		bufp++;
 	}
+	tokens = malloc(sizeof(char *) * (tokensize + 1));
+	token = strtok(buf, delim);
+	while (token)
+	{
+		tokens[index] = _strdup(token);
+		if (tokens[index] == NULL)
+		{
+			free(tokens);
+			return (NULL);
+		}
+		token = strtok(NULL, delim);
+		index++;
+	}
+	tokens[index] = '\0';
+	free(buf);
 	return (tokens);
 }
