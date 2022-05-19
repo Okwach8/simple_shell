@@ -1,113 +1,21 @@
-0x16. C - Simple Shell
-
-   Background Context  
-
-        Write a simple UNIX command interpreter.
-
-   Requirements
-
-        General
-
-        Allowed editors: vi, vim, emacs
-
-        All your files will be compiled on Ubuntu 20.04 LTS using gcc, using the options -Wall -Werror -Wextra -pedantic -std=gnu89
-
-        All your files should end with a new line
-
-        A README.md file, at the root of the folder of the project is mandatory
-
-        Your code should use the Betty style. It will be checked using betty-style.pl and betty-doc.pl
-
-        Your shell should not have any memory leaks
-
-        No more than 5 functions per file
-
-        All your header files should be include guarded
-
-        Use system calls only when you need to (why?)
-
-        Write a README with the description of your project
-
-        You should have an AUTHORS file at the root of your repository, listing all individuals having contributed content to the repository. Format, see Docker
-
-    GitHub
+ Simple Shell
     
-        *There should be one project repository per group. If you and your partner have a repository with the same name in both your accounts, you risk a 0% score. Add your partner as a collaborator. *
+        Simple shell is the final project of ALX Low Level Programming which wraps up the First Trimester of the ALX Software Engineering Programme. As part of cohort 5 of the programme, we are expected to complete the project in groups of two in 14 days.
 
-    More Info
-    Output
-        Unless specified otherwise, your program must have the exact same output as sh (/bin/sh) as well as the exact same error output.
-        The only difference is when you print an error, the name of the program must be equivalent to your argv[0] (See below)
-        Example of error with sh:
+        simple_shell is shell smilar to the first UNIX shell written by Ken Thompson in 1971. This shell comprises of the basic functionality of a trditional Unix like command line interface.
 
-        $ echo "qwerty" | /bin/sh
-        /bin/sh: 1: qwerty: not found
-        $ echo "qwerty" | /bin/../bin/sh
-        /bin/../bin/sh: 1: qwerty: not found
-        $
-    Same error with your program hsh:
+Overview
 
-        $ echo "qwerty" | ./hsh
-        ./hsh: 1: qwerty: not found
-        $ echo "qwerty" | ./././hsh
-        ./././hsh: 1: qwerty: not found
-        $
+        This simple_shell is written by Don Alvin and Winnie Okwach. As at the time of this writing(19th May 2022), there are no known bugs. THis simple shell is written to executes command similar to sh but with limited functionalaty. As the developement of this shell is on going, more feature will added. Eventually we the shell to handle the following features.
 
-    List of allowed functions and system calls
-        access (man 2 access)
-        chdir (man 2 chdir)
-        close (man 2 close)
-        closedir (man 3 closedir)
-        execve (man 2 execve)
-        exit (man 3 exit)
-        _exit (man 2 _exit)
-        fflush (man 3 fflush)
-        fork (man 2 fork)
-        free (man 3 free)
-        getcwd (man 3 getcwd)
-        getline (man 3 getline)
-        getpid (man 2 getpid)
-        isatty (man 3 isatty)
-        kill (man 2 kill)
-        malloc (man 3 malloc)
-        open (man 2 open)
-        opendir (man 3 opendir)
-        perror (man 3 perror)
-        read (man 2 read)
-        readdir (man 3 readdir)
-        signal (man 2 signal)
-        stat (__xstat) (man 2 stat)
-        lstat (__lxstat) (man 2 lstat)
-        fstat (__fxstat) (man 2 fstat)
-        strtok (man 3 strtok)
-        wait (man 2 wait)
-        waitpid (man 2 waitpid)
-        wait3 (man 2 wait3)
-        wait4 (man 2 wait4)
-        write (man 2 write)
-    Compilation
-        Your shell will be compiled this way:
-
-        gcc -Wall -Werror -Wextra -pedantic -std=gnu89 *.c -o hsh
-        Testing
-        Your shell should work like this in interactive mode:
-
-            $ ./hsh
-            ($) /bin/ls
-            hsh main.c shell.c
-            ($)
-            ($) exit
-            $
-            But also in non-interactive mode:
-
-            $ echo "/bin/ls" | ./hsh
-            hsh main.c shell.c test_ls_2
-            $
-            $ cat test_ls_2
-            /bin/ls
-            /bin/ls
-            $
-            $ cat test_ls_2 | ./hsh
-            hsh main.c shell.c test_ls_2
-            hsh main.c shell.c test_ls_2
-            $
+        Features
+          Handles command line interpretor
+          Uses the PATH
+          Handles the command separator (;)
+          Handles shell logical operators && and ||
+          Handles variable replacement
+          Aliases
+          Handles comments (#)
+          Uses exit status
+          Implements builtins
+          
