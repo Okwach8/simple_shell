@@ -1,122 +1,157 @@
-#include "header.h"
+#include "shell.h"
 
 /**
- * _env - writes env to stdout
- * @arginv: arguments inventory
- *
- * Return: 0 on success
+ * check_for_builtins - checks if the command is a builtin
+ * @vars: variables
+ * Return: pointer to the function or NULL
  */
-int _env(arg_inventory_t *arginv)
+void (*check_for_builtins(vars_t *vars))(vars_t *vars)
 {
-	env_t *envlist = arginv->envlist;
-	char **commands;
+	unsigned int i;
+	builtins_t check[] = {
+		{"exit", new_exit},
+		{"env", _env},
+		{"setenv", new_setenv},
+		{"unsetenv", new_unsetenv},
+		{NULL, NULL}
+	};
 
-	commands = (char **)arginv->commands;
-
-	if (commands[1] != NULL)
+	for (i = 0; check[i].f != NULL; i++)
 	{
-		_perror("env: No such file or directory\n");
-		return (-1);
+		if (_strcmpr(vars->av[0], check[i].name) == 0)
+			break;
 	}
-
-	print_list(envlist);
-
-	return (EXT_SUCCESS);
+	if (check[i].f != NULL)
+		check[i].f(vars);
+	return (check[i].f);
 }
 
 /**
- * _history - writes history to stdout
- * @arginv: arguments inventory
- *
- * Return: 0 on success
+ * new_exit - exit program
+ * @vars: variables
+ * Return: void
  */
-int _history(arg_inventory_t *arginv)
+void new_exit(vars_t *vars)
 {
-	history_t *historylist = arginv->history;
+	int status;
 
-	write_history(historylist);
-
-	return (EXT_SUCCESS);
+	if (_strcmpr(vars->av[0], "exit") == 0 && vars->av[1] != NULL)
+	{
+		status = _atoi(vars->av[1]);
+		if (status == -1)
+		{
+			vars->status = 2;
+			print_error(vars, ": Illegal number: ");
+			_puts2(vars->av[1]);
+			_puts2("\n");
+			free(vars->commands);
+			vars->commands = NULL;
+			return;
+		}
+		vars->status = status;
+	}
+	free(vars->buffer);
+	free(vars->av);
+	free(vars->commands);
+	free_env(vars->env);
+	exit(vars->status);
 }
 
 /**
- * _setenv - sets new environmental variable
- * @arginv: arguments inventory
- *
- * Return: 0 on success
+ * _env - prints the current environment
+ * @vars: struct of variables
+ * Return: void.
  */
-int _setenv(arg_inventory_t *arginv)
+void _env(vars_t *vars)
 {
-	char **commands, *new_var, *new_val;
-	env_t *envlist = arginv->envlist;
+	unsigned int i;
 
-	commands = (char **)arginv->commands;
-
-	if (commands[1] == NULL || commands[2] == NULL)
+	for (i = 0; vars->env[i]; i++)
 	{
-		_perror("setenv: missing parameters.\n");
-		return (-1);
+		_puts(vars->env[i]);
+		_puts("\n");
 	}
-
-	if (commands[3] != NULL)
-	{
-		_perror("setenv: missing value.\n");
-		return (-1);
-	}
-
-	new_var = commands[1];
-	new_val = commands[2];
-
-	if (modify_node_env(&envlist, new_var, new_val) == EXT_FAILURE)
-	{
-		add_node_env(&envlist, new_var, new_val);
-	}
-
-	return (EXT_SUCCESS);
+	vars->status = 0;
 }
 
 /**
- * _unsetenv - sets new environmental variable
- * @arginv: arguments inventory
+ * new_setenv - create a new environment variable, or edit an existing variable
+ * @vars: pointer to struct of variables
  *
- * Return: 0 on success
+ * Return: void
  */
-int _unsetenv(arg_inventory_t *arginv)
+void new_setenv(vars_t *vars)
 {
-	char **commands;
-	env_t *envlist = arginv->envlist;
+	char **key;
+	char *var;
 
-	commands = (char **)arginv->commands;
-
-	if (commands[1] == NULL)
+	if (vars->av[1] == NULL || vars->av[2] == NULL)
 	{
-		_perror("unsetenv: missing parameters.\n");
-		return (-1);
+		print_error(vars, ": Incorrect number of arguments\n");
+		vars->status = 2;
+		return;
 	}
-
-	if (commands[2] != NULL)
+	key = find_key(vars->env, vars->av[1]);
+	if (key == NULL)
+		add_key(vars);
+	else
 	{
-		_perror("unsetenv: too many input commands.\n");
-		return (-1);
+		var = add_value(vars->av[1], vars->av[2]);
+		if (var == NULL)
+		{
+			print_error(vars, NULL);
+			free(vars->buffer);
+			free(vars->commands);
+			free(vars->av);
+			free_env(vars->env);
+			exit(127);
+		}
+		free(*key);
+		*key = var;
 	}
-
-	if (remove_node_env(&envlist, commands[1]))
-		return (EXT_FAILURE);
-
-	return (EXT_SUCCESS);
+	vars->status = 0;
 }
 
 /**
- * _arsine - prints mona lisa ascii art
- * @arginv: arguments inventory
+ * new_unsetenv - remove an environment variable
+ * @vars: pointer to a struct of variables
  *
- * Return: 0 on success
+ * Return: void
  */
-int _arsine(arg_inventory_t *arginv)
+void new_unsetenv(vars_t *vars)
 {
-	(void)arginv;
+	char **key, **newenv;
 
-	_puts("AsH3 special thanks to Walter White");
+	unsigned int i, j;
 
-	return (EXT_SUCCESS);
+	if (vars->av[1] == NULL)
+	{
+		print_error(vars, ": Incorrect number of arguments\n");
+		vars->status = 2;
+		return;
+	}
+	key = find_key(vars->env, vars->av[1]);
+	if (key == NULL)
+	{
+		print_error(vars, ": No variable to unset");
+		return;
+	}
+	for (i = 0; vars->env[i] != NULL; i++)
+		;
+	newenv = malloc(sizeof(char *) * i);
+	if (newenv == NULL)
+	{
+		print_error(vars, NULL);
+		vars->status = 127;
+		new_exit(vars);
+	}
+	for (i = 0; vars->env[i] != *key; i++)
+		newenv[i] = vars->env[i];
+	for (j = i + 1; vars->env[j] != NULL; j++, i++)
+		newenv[i] = vars->env[j];
+	newenv[i] = NULL;
+	free(*key);
+	free(vars->env);
+	vars->env = newenv;
+	vars->status = 0;
 }
