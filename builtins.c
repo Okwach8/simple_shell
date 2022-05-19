@@ -1,157 +1,80 @@
 #include "shell.h"
-
 /**
- * check_for_builtins - checks if the command is a builtin
- * @vars: variables
- * Return: pointer to the function or NULL
+ * run_execute - an execution function for the command given
+ * @arg_list: argument list of what is inputed by user
+ * @env_p: the linked list containing environmental variables
+ * @cmd_size: size that cmd should be allocated for
+ * Description: Checks if the command given is given the path (i.e /bin/ls)
+ * if not, then the function will find the path for the command and if it fails
+ * to find the command, an Error: command not found will be printed.
+ * Return: status if success or 127 if failure.
  */
-void (*check_for_builtins(vars_t *vars))(vars_t *vars)
+
+int run_execute(char **arg_list, env_t *env_p, int cmd_size)
 {
-	unsigned int i;
-	builtins_t check[] = {
-		{"exit", new_exit},
-		{"env", _env},
-		{"setenv", new_setenv},
-		{"unsetenv", new_unsetenv},
-		{NULL, NULL}
-	};
+	char *cmd, *path;
+	char **search_path;
+	int status, n, m;
 
-	for (i = 0; check[i].f != NULL; i++)
-	{
-		if (_strcmpr(vars->av[0], check[i].name) == 0)
-			break;
-	}
-	if (check[i].f != NULL)
-		check[i].f(vars);
-	return (check[i].f);
-}
-
-/**
- * new_exit - exit program
- * @vars: variables
- * Return: void
- */
-void new_exit(vars_t *vars)
-{
-	int status;
-
-	if (_strcmpr(vars->av[0], "exit") == 0 && vars->av[1] != NULL)
-	{
-		status = _atoi(vars->av[1]);
-		if (status == -1)
-		{
-			vars->status = 2;
-			print_error(vars, ": Illegal number: ");
-			_puts2(vars->av[1]);
-			_puts2("\n");
-			free(vars->commands);
-			vars->commands = NULL;
-			return;
-		}
-		vars->status = status;
-	}
-	free(vars->buffer);
-	free(vars->av);
-	free(vars->commands);
-	free_env(vars->env);
-	exit(vars->status);
-}
-
-/**
- * _env - prints the current environment
- * @vars: struct of variables
- * Return: void.
- */
-void _env(vars_t *vars)
-{
-	unsigned int i;
-
-	for (i = 0; vars->env[i]; i++)
-	{
-		_puts(vars->env[i]);
-		_puts("\n");
-	}
-	vars->status = 0;
-}
-
-/**
- * new_setenv - create a new environment variable, or edit an existing variable
- * @vars: pointer to struct of variables
- *
- * Return: void
- */
-void new_setenv(vars_t *vars)
-{
-	char **key;
-	char *var;
-
-	if (vars->av[1] == NULL || vars->av[2] == NULL)
-	{
-		print_error(vars, ": Incorrect number of arguments\n");
-		vars->status = 2;
-		return;
-	}
-	key = find_key(vars->env, vars->av[1]);
-	if (key == NULL)
-		add_key(vars);
+	search_path = NULL;
+	n = 0;
+	cmd = safe_malloc(sizeof(char) * cmd_size);
+	path = safe_malloc(sizeof(char) * cmd_size);
+	_strcpy(cmd, arg_list[0]);
+	if (_strchr(cmd, '/') != NULL)
+		status = execute_func(cmd, arg_list, env_p);
 	else
 	{
-		var = add_value(vars->av[1], vars->av[2]);
-		if (var == NULL)
+		m = get_path(path, env_p);
+		if (m != 0)
 		{
-			print_error(vars, NULL);
-			free(vars->buffer);
-			free(vars->commands);
-			free(vars->av);
-			free_env(vars->env);
-			exit(127);
+			_write("Error: Cannot find PATH variable\n");
+			return (127);
 		}
-		free(*key);
-		*key = var;
+		search_path = tokenize_path(search_path, path, cmd_size);
+		n = create_path(cmd, search_path);
+		if (n == 0)
+			status = execute_func(cmd, arg_list, env_p);
 	}
-	vars->status = 0;
+	if (n == 0)
+		return (status);
+	else
+		return (127);
 }
 
 /**
- * new_unsetenv - remove an environment variable
- * @vars: pointer to a struct of variables
- *
- * Return: void
+ * execute_func - function that runs the execve system call.
+ * @cmd: full path to the command
+ * @args: the arguement list (if any) given by the user.
+ * @envp: environemental variable list
+ * Return: 0 on success and 2 on failure
  */
-void new_unsetenv(vars_t *vars)
+
+int execute_func(char *cmd, char **args, env_t *envp)
 {
-	char **key, **newenv;
+	pid_t pid;
+	int status, i;
+	char **array;
 
-	unsigned int i, j;
 
-	if (vars->av[1] == NULL)
+	pid = fork();
+	if (pid == 0)
 	{
-		print_error(vars, ": Incorrect number of arguments\n");
-		vars->status = 2;
-		return;
+		array = list_to_array(envp);
+		i = execve(cmd, args, array);
+		if (i < 0)
+		{
+			_write("Error: command not found\n");
+			return (2);
+			_exit(1);
+		}
 	}
-	key = find_key(vars->env, vars->av[1]);
-	if (key == NULL)
+	else
 	{
-		print_error(vars, ": No variable to unset");
-		return;
+
+		pid = wait(&status);
+		if (WIFEXITED(status))
+			return (status);
 	}
-	for (i = 0; vars->env[i] != NULL; i++)
-		;
-	newenv = malloc(sizeof(char *) * i);
-	if (newenv == NULL)
-	{
-		print_error(vars, NULL);
-		vars->status = 127;
-		new_exit(vars);
-	}
-	for (i = 0; vars->env[i] != *key; i++)
-		newenv[i] = vars->env[i];
-	for (j = i + 1; vars->env[j] != NULL; j++, i++)
-		newenv[i] = vars->env[j];
-	newenv[i] = NULL;
-	free(*key);
-	free(vars->env);
-	vars->env = newenv;
-	vars->status = 0;
+	return (2);
 }
