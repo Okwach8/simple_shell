@@ -1,80 +1,122 @@
-#include "shell.h"
+#include "header.h"
+
 /**
- * run_execute - an execution function for the command given
- * @arg_list: argument list of what is inputed by user
- * @env_p: the linked list containing environmental variables
- * @cmd_size: size that cmd should be allocated for
- * Description: Checks if the command given is given the path (i.e /bin/ls)
- * if not, then the function will find the path for the command and if it fails
- * to find the command, an Error: command not found will be printed.
- * Return: status if success or 127 if failure.
+ * _env - writes env to stdout
+ * @arginv: arguments inventory
+ *
+ * Return: 0 on success
  */
-
-int run_execute(char **arg_list, env_t *env_p, int cmd_size)
+int _env(arg_inventory_t *arginv)
 {
-	char *cmd, *path;
-	char **search_path;
-	int status, n, m;
+	env_t *envlist = arginv->envlist;
+	char **commands;
 
-	search_path = NULL;
-	n = 0;
-	cmd = safe_malloc(sizeof(char) * cmd_size);
-	path = safe_malloc(sizeof(char) * cmd_size);
-	_strcpy(cmd, arg_list[0]);
-	if (_strchr(cmd, '/') != NULL)
-		status = execute_func(cmd, arg_list, env_p);
-	else
+	commands = (char **)arginv->commands;
+
+	if (commands[1] != NULL)
 	{
-		m = get_path(path, env_p);
-		if (m != 0)
-		{
-			_write("Error: Cannot find PATH variable\n");
-			return (127);
-		}
-		search_path = tokenize_path(search_path, path, cmd_size);
-		n = create_path(cmd, search_path);
-		if (n == 0)
-			status = execute_func(cmd, arg_list, env_p);
+		_perror("env: No such file or directory\n");
+		return (-1);
 	}
-	if (n == 0)
-		return (status);
-	else
-		return (127);
+
+	print_list(envlist);
+
+	return (EXT_SUCCESS);
 }
 
 /**
- * execute_func - function that runs the execve system call.
- * @cmd: full path to the command
- * @args: the arguement list (if any) given by the user.
- * @envp: environemental variable list
- * Return: 0 on success and 2 on failure
+ * _history - writes history to stdout
+ * @arginv: arguments inventory
+ *
+ * Return: 0 on success
  */
-
-int execute_func(char *cmd, char **args, env_t *envp)
+int _history(arg_inventory_t *arginv)
 {
-	pid_t pid;
-	int status, i;
-	char **array;
+	history_t *historylist = arginv->history;
 
+	write_history(historylist);
 
-	pid = fork();
-	if (pid == 0)
+	return (EXT_SUCCESS);
+}
+
+/**
+ * _setenv - sets new environmental variable
+ * @arginv: arguments inventory
+ *
+ * Return: 0 on success
+ */
+int _setenv(arg_inventory_t *arginv)
+{
+	char **commands, *new_var, *new_val;
+	env_t *envlist = arginv->envlist;
+
+	commands = (char **)arginv->commands;
+
+	if (commands[1] == NULL || commands[2] == NULL)
 	{
-		array = list_to_array(envp);
-		i = execve(cmd, args, array);
-		if (i < 0)
-		{
-			_write("Error: command not found\n");
-			return (2);
-			_exit(1);
-		}
+		_perror("setenv: missing parameters.\n");
+		return (-1);
 	}
-	else
-	{
 
-		pid = wait(&status);
-		if (WIFEXITED(status))
-			return (status);
+	if (commands[3] != NULL)
+	{
+		_perror("setenv: missing value.\n");
+		return (-1);
 	}
-	return (2);
+
+	new_var = commands[1];
+	new_val = commands[2];
+
+	if (modify_node_env(&envlist, new_var, new_val) == EXT_FAILURE)
+	{
+		add_node_env(&envlist, new_var, new_val);
+	}
+
+	return (EXT_SUCCESS);
+}
+
+/**
+ * _unsetenv - sets new environmental variable
+ * @arginv: arguments inventory
+ *
+ * Return: 0 on success
+ */
+int _unsetenv(arg_inventory_t *arginv)
+{
+	char **commands;
+	env_t *envlist = arginv->envlist;
+
+	commands = (char **)arginv->commands;
+
+	if (commands[1] == NULL)
+	{
+		_perror("unsetenv: missing parameters.\n");
+		return (-1);
+	}
+
+	if (commands[2] != NULL)
+	{
+		_perror("unsetenv: too many input commands.\n");
+		return (-1);
+	}
+
+	if (remove_node_env(&envlist, commands[1]))
+		return (EXT_FAILURE);
+
+	return (EXT_SUCCESS);
+}
+
+/**
+ * _arsine - prints mona lisa ascii art
+ * @arginv: arguments inventory
+ *
+ * Return: 0 on success
+ */
+int _arsine(arg_inventory_t *arginv)
+{
+	(void)arginv;
+
+	_puts("AsH3 special thanks to Walter White");
+
+	return (EXT_SUCCESS);
 }
